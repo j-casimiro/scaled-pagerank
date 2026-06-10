@@ -1,0 +1,5 @@
+venv/
+__pycache__/
+.DS_Store
+git_backup_temp/
+rebuild_git_correct.py
