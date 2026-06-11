@@ -261,63 +261,158 @@
       flex-direction: column;
     }
 
-    /* Search Tab Layout */
+    /* Search Tab Layout (Static & Minimalist) */
     .search-wrapper {
-      padding: 20px;
+      padding: 15vh 20px 30px 20px;
       display: flex;
       flex-direction: column;
-      gap: 15px;
+      align-items: center;
+      justify-content: flex-start;
       height: 100%;
       overflow-y: auto;
     }
 
+    /* Logo Area */
+    .search-logo-area {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-bottom: 24px;
+      text-align: center;
+      width: 100%;
+    }
+
+    .search-logo-title {
+      font-size: 36px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin: 0 0 6px 0;
+      letter-spacing: -0.5px;
+    }
+
+    .search-logo-sub {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin: 0;
+    }
+
     .search-bar-container {
       display: flex;
-      gap: 10px;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
       width: 100%;
-      max-width: 800px;
+      max-width: 580px;
+      margin-bottom: 8px;
+    }
+
+    .search-input-group {
+      display: flex;
+      width: 100%;
+      gap: 8px;
     }
 
     .search-input {
       flex: 1;
+      background-color: var(--bg-card);
       border: 1px solid var(--border-color);
-      background-color: var(--bg-main);
-      color: var(--text-primary);
-      padding: 8px 12px;
-      font-size: 14px;
-      outline: none;
       border-radius: 4px;
+      padding: 10px 14px;
+      font-size: 14px;
+      color: var(--text-primary);
+      outline: none;
+      transition: border-color 0.2s ease;
+    }
+
+    .search-input:hover, .search-input:focus {
+      border-color: var(--border-active);
+    }
+
+    .search-btn-right {
+      background-color: var(--bg-sidebar);
+      border: 1px solid var(--border-color);
+      color: var(--text-primary);
+      padding: 10px 20px;
+      font-size: 13px;
+      font-weight: 500;
+      border-radius: 4px;
+      cursor: pointer;
+      white-space: nowrap;
       transition: all 0.2s ease;
     }
 
-    .search-input:focus {
+    .search-btn-right:hover {
+      background-color: var(--bg-card-hover);
       border-color: var(--border-active);
+    }
+
+    .search-btn-right:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      background-color: var(--bg-sidebar);
+      border-color: var(--border-color);
     }
 
     .scoring-select {
       border: 1px solid var(--border-color);
-      background-color: var(--bg-main);
+      background-color: var(--bg-card);
       color: var(--text-primary);
-      padding: 6px 10px;
+      padding: 10px 12px;
       font-size: 13px;
       outline: none;
       border-radius: 4px;
-      transition: all 0.2s ease;
+      cursor: pointer;
+      transition: border-color 0.2s ease;
+      text-align-last: center;
+      width: 100%;
+      max-width: 320px;
+    }
+
+    .scoring-select:hover, .scoring-select:focus {
+      border-color: var(--border-active);
     }
 
     /* Results list */
     .results-container {
-      max-width: 800px;
+      max-width: 850px;
       width: 100%;
-      display: flex;
+      display: none; /* Hidden on landing state */
       flex-direction: column;
-      gap: 15px;
-      padding-bottom: 20px;
+      gap: 16px;
+      padding: 15px 0 30px 0;
     }
 
     .no-results {
       padding: 40px 0;
       color: var(--text-muted);
+    }
+
+    /* Transitioned Query State (Left-aligned & Static results mode) */
+    .search-wrapper.has-query {
+      padding: 40px 60px;
+      align-items: flex-start;
+    }
+
+    .search-wrapper.has-query .search-logo-area {
+      align-items: flex-start;
+      text-align: left;
+    }
+
+    .search-wrapper.has-query .search-bar-container {
+      max-width: 850px;
+      flex-direction: row;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 16px;
+    }
+
+    .search-wrapper.has-query .scoring-select {
+      width: auto;
+      text-align-last: left;
+      max-width: none;
+    }
+
+    .search-wrapper.has-query .results-container {
+      display: flex; /* Show results container */
     }
 
     .result-card {
@@ -671,11 +766,20 @@
         
         <!-- Tab 1: Search -->
         <div class="tab-pane active" id="search-tab">
-          <div class="search-wrapper">
+          <div class="search-wrapper" id="search-wrapper-container">
+            
+            <!-- Centered Header Logo/Title (visible only in landing state) -->
+            <div class="search-logo-area">
+              <h1 class="search-logo-title">PageRank</h1>
+              <p class="search-logo-sub">Search Engine Prototype • Scientific Revolution Dataset</p>
+            </div>
             
             <!-- Search bar -->
             <div class="search-bar-container">
-              <input type="text" class="search-input" id="search-query-input" placeholder="Search crawled pages (e.g. 'Roman Emperor', 'Revolution')..." autofocus>
+              <div class="search-input-group">
+                <input type="text" class="search-input" id="search-query-input" placeholder="Search Newtonian physics, celestial spheres, Kepler, Galileo..." autofocus>
+                <button class="search-btn-right" id="search-button">Search</button>
+              </div>
               <select class="scoring-select" id="scoring-select-mode">
                 <option value="multiplicative">Scoring: Multiplicative (Relevance * PR)</option>
                 <option value="linear-combination">Scoring: Linear Combination (Relevance_norm + α * PR_norm)</option>
@@ -915,7 +1019,11 @@
       const alpha = parseFloat(alphaSlider.value);
       alphaValue.textContent = alpha.toFixed(1);
 
-      if (!query) {
+      const wrapper = document.getElementById("search-wrapper-container");
+      if (query.length > 0) {
+        wrapper.classList.add("has-query");
+      } else {
+        wrapper.classList.remove("has-query");
         resultsDisplayArea.innerHTML = `
           <div class="no-results">
             <p>Type a query above to search the dataset. Results combine TF-IDF and PageRank.</p>
@@ -1050,13 +1158,41 @@
 
     dampingSlider.addEventListener("input", updateEngineState);
     alphaSlider.addEventListener("input", updateEngineState);
-    searchInput.addEventListener("input", executeSearch);
+    
+    // Support enter key on search input to run search
+    searchInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        executeSearch();
+      }
+    });
+
     nodeSizeToggle.addEventListener("change", updateGraphNodeSizes);
 
     scoringSelectMode.addEventListener("change", (e) => {
       searchMode = e.target.value;
-      executeSearch();
+      if (searchInput.value.trim().length > 0) {
+        executeSearch();
+      }
     });
+
+    // Search button next to search bar
+    const searchButton = document.getElementById("search-button");
+    
+    function updateSearchButtonState() {
+      if (searchButton) {
+        searchButton.disabled = searchInput.value.trim() === "";
+      }
+    }
+    
+    // Initial check on load
+    updateSearchButtonState();
+
+    // Toggle button state as user types
+    searchInput.addEventListener("input", updateSearchButtonState);
+
+    if (searchButton) {
+      searchButton.addEventListener("click", executeSearch);
+    }
 
     // ==========================================
     // D3 GRAPH IMPLEMENTATION
