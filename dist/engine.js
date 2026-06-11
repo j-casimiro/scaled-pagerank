@@ -39,15 +39,19 @@ class PageRankSolver {
         }
     }
     /**
-     * Solves the PageRank equation: R = d * P * R + (1-d)/N * E * R
-     * via Power Iteration.
+     * Solves the PageRank equation: R = d * P * R + (1-d) * E * R
+     * via Power Iteration (based on the original 1998 Brin & Page paper formulation).
+     *
+     * In this original formulation:
+     * - PageRank values sum to N (the total number of nodes) rather than 1.
+     * - The initial PageRank vector is set uniformly to 1.0 for each node.
+     * - Teleportation constant probability is (1 - d) instead of (1 - d) / N.
      *
      * Handling Sinks:
-     * Sink nodes (nodes with 0 out-links) are treated as linking to all nodes in the universe.
-     * This is mathematically modeled by adding their current rank to a uniform distribution pool.
+     * Sink nodes are assumed to point to all pages in the parameter database.
      *
      * @param d Damping factor (typically 0.85).
-     * @param tolerance L1 convergence delta threshold (typically 1e-6).
+     * @param tolerance L1 convergence delta threshold.
      * @param maxIterations Safety limit for power iteration loop.
      */
     solve(d, tolerance = 1e-6, maxIterations = 200) {
@@ -61,11 +65,11 @@ class PageRankSolver {
                 sinks.push(u);
             }
         }
-        // Initialize PageRank vector uniformly: R_0 = 1 / N
-        let R = new Array(this.numNodes).fill(1.0 / this.numNodes);
+        // Initialize PageRank vector uniformly to 1.0 (Sum of vector = N)
+        let R = new Array(this.numNodes).fill(1.0);
         let iterations = 0;
-        log.push(`Initial R_0 = ${(1.0 / this.numNodes).toFixed(5)}`);
-        log.push(`Damping factor d = ${d.toFixed(2)} (Teleportation probability = ${(1.0 - d).toFixed(2)})`);
+        log.push(`Initial R_0 = 1.00000 (Sum = ${this.numNodes})`);
+        log.push(`Damping factor d = ${d.toFixed(2)} (Original Teleportation constant = ${(1.0 - d).toFixed(2)})`);
         log.push(`Identified ${sinks.length} sink nodes. Redistributing their rank uniformly.`);
         // Power Iteration Loop
         for (let iter = 0; iter < maxIterations; iter++) {
@@ -76,9 +80,9 @@ class PageRankSolver {
             for (const sink of sinks) {
                 sinkSum += R[sink];
             }
-            // Base probability for random surfer:
-            // (1 - d) / N (teleportation) + d * sinkSum / N (distributed sink rank)
-            const baseSurferProb = (1.0 - d) / this.numNodes + (d * sinkSum) / this.numNodes;
+            // Base probability in the original paper's formulation (summing to N):
+            // (1 - d) + d * sinkSum / N
+            const baseSurferProb = (1.0 - d) + (d * sinkSum) / this.numNodes;
             // Compute next iteration rank for each node
             for (let i = 0; i < this.numNodes; i++) {
                 let incomingSum = 0;
@@ -95,9 +99,10 @@ class PageRankSolver {
             }
             R = R_next;
             log.push(`Iteration ${iter + 1}: L1 Delta = ${diff.toExponential(4)}`);
-            // Convergence check
-            if (diff < tolerance) {
-                log.push(`Converged successfully at iteration ${iter + 1} (Delta < ${tolerance.toExponential(0)})`);
+            // Convergence check (scaled by N to maintain equivalent precision)
+            const scaledTolerance = tolerance * this.numNodes;
+            if (diff < scaledTolerance) {
+                log.push(`Converged successfully at iteration ${iter + 1} (Delta < ${scaledTolerance.toExponential(0)})`);
                 break;
             }
         }
