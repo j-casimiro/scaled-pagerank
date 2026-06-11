@@ -7,7 +7,9 @@
   <!-- D3.js for Graph Visualization -->
   <script src="https://d3js.org/d3.v7.min.js"></script>
   <!-- Load Pre-crawled Wikipedia Data -->
-  <script src="data.js"></script>
+  <script src="dist/data.js"></script>
+  <!-- Load Compiled TypeScript Search Engine Logic -->
+  <script src="dist/engine.js"></script>
   
   <style>
     :root {
@@ -840,94 +842,31 @@
     let invertedIndex = CRAWL_DATA.inverted_index;
     let pages = CRAWL_DATA.pages;
 
+    // Initialize TypeScript Search Engine Solvers
+    const prSolver = new PageRankSolver(numNodes, adjacencyList);
+    const searchResolver = new SearchResolver(pages, invertedIndex, STOP_WORDS);
+    inDegreeList = prSolver.inDegreeList;
+
     // Update header subtitle dynamically
     document.querySelector(".header-sub").textContent = `Dataset: ${numNodes} Scientific Revolution-centered Wikipedia Pages`;
     statNodes.textContent = numNodes;
 
-    // Calculate In-Links
-    function initInDegrees() {
-      inDegreeList = {};
-      for (let i = 0; i < numNodes; i++) {
-        inDegreeList[i] = [];
-      }
-      let linkCount = 0;
-      for (let u = 0; u < numNodes; u++) {
-        const targets = adjacencyList[u] || [];
-        linkCount += targets.length;
-        for (const v of targets) {
-          inDegreeList[v].push(u);
-        }
-      }
-      statLinks.textContent = linkCount;
+    // Calculate link count
+    let linkCount = 0;
+    for (let u = 0; u < numNodes; u++) {
+      linkCount += (adjacencyList[u] || []).length;
     }
-
-    // Power Iteration PageRank Solver
-    function solvePageRank(d, tolerance = 1e-6, maxIterations = 200) {
-      pagerankLog = [];
-      const outDegrees = new Array(numNodes).fill(0);
-      const sinks = [];
-
-      for (let u = 0; u < numNodes; u++) {
-        outDegrees[u] = (adjacencyList[u] || []).length;
-        if (outDegrees[u] === 0) {
-          sinks.push(u);
-        }
-      }
-
-      let R = new Array(numNodes).fill(1.0 / numNodes);
-      let converged = false;
-      let iterations = 0;
-
-      pagerankLog.push(`Initial R_0 = ${(1.0/numNodes).toFixed(4)}`);
-      pagerankLog.push(`d = ${d.toFixed(2)}, Teleportation = ${(1.0-d).toFixed(2)}`);
-      pagerankLog.push(`Found ${sinks.length} sink nodes. Redistributing...`);
-
-      for (let iter = 0; iter < maxIterations; iter++) {
-        iterations++;
-        let R_next = new Array(numNodes).fill(0);
-        
-        let sinkSum = 0;
-        for (const sink of sinks) {
-          sinkSum += R[sink];
-        }
-
-        const baseSurferProb = (1.0 - d) / numNodes + (d * sinkSum) / numNodes;
-
-        for (let i = 0; i < numNodes; i++) {
-          let incomingSum = 0;
-          const parents = inDegreeList[i] || [];
-          for (const p of parents) {
-            incomingSum += R[p] / outDegrees[p];
-          }
-          R_next[i] = baseSurferProb + d * incomingSum;
-        }
-
-        // L1 Delta
-        let diff = 0;
-        for (let i = 0; i < numNodes; i++) {
-          diff += Math.abs(R_next[i] - R[i]);
-        }
-
-        R = R_next;
-        pagerankLog.push(`Step ${iter+1}: L1 Delta = ${diff.toExponential(4)}`);
-
-        if (diff < tolerance) {
-          converged = true;
-          pagerankLog.push(`Converged at step ${iter+1} (Delta < ${tolerance.toExponential(0)})`);
-          break;
-        }
-      }
-
-      statIterations.textContent = iterations;
-      return R;
-    }
+    statLinks.textContent = linkCount;
 
     // Run Engine Updates
     function updateEngineState() {
       const d = parseFloat(dampingSlider.value);
       dampingValue.textContent = d.toFixed(2);
       
-      pagerankVector = solvePageRank(d);
+      const prResult = prSolver.solve(d);
+      pagerankVector = prResult.pagerank;
+      pagerankLog = prResult.log;
+      statIterations.textContent = prResult.iterations;
       
       const terminal = document.getElementById("convergence-terminal-output");
       terminal.innerHTML = "";
@@ -999,40 +938,7 @@
         return;
       }
 
-      const docRelevance = {};
-      const matchedTerms = {};
-
-      for (const term of cleanTerms) {
-        if (invertedIndex[term]) {
-          for (const [pageIdStr, tfIdf] of Object.entries(invertedIndex[term])) {
-            const pageId = parseInt(pageIdStr);
-            docRelevance[pageId] = (docRelevance[pageId] || 0) + tfIdf;
-            if (!matchedTerms[pageId]) matchedTerms[pageId] = [];
-            matchedTerms[pageId].push(term);
-          }
-        }
-      }
-
-      const results = [];
-      let maxRel = 0;
-      let maxPR = 0;
-
-      for (const [pageIdStr, relevance] of Object.entries(docRelevance)) {
-        const pageId = parseInt(pageIdStr);
-        const pr = pagerankVector[pageId];
-        if (relevance > maxRel) maxRel = relevance;
-        if (pr > maxPR) maxPR = pr;
-
-        results.push({
-          id: pageId,
-          title: pages[pageId].title,
-          url: pages[pageId].url,
-          snippet: pages[pageId].snippet,
-          relevance: relevance,
-          pagerank: pr,
-          matched_terms: matchedTerms[pageId]
-        });
-      }
+      const results = searchResolver.search(query, pagerankVector, alpha, searchMode);
 
       if (results.length === 0) {
         resultsDisplayArea.innerHTML = `
@@ -1041,21 +947,6 @@
           </div>
         `;
         return;
-      }
-
-      // Compute normalized scores
-      results.forEach(res => {
-        const rel_norm = maxRel > 0 ? res.relevance / maxRel : 0;
-        const pr_norm = maxPR > 0 ? res.pagerank / maxPR : 0;
-        
-        res.score_mul = res.relevance * res.pagerank;
-        res.score_linear_comb = rel_norm + alpha * pr_norm;
-      });
-
-      if (searchMode === 'multiplicative') {
-        results.sort((a, b) => b.score_mul - a.score_mul);
-      } else {
-        results.sort((a, b) => b.score_linear_comb - a.score_linear_comb);
       }
 
       resultsDisplayArea.innerHTML = "";
@@ -1513,7 +1404,6 @@
     window.addEventListener("resize", resizeD3Graph);
 
     // Init
-    initInDegrees();
     updateEngineState();
     setTimeout(buildD3Graph, 200);
 

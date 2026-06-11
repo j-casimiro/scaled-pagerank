@@ -112,7 +112,7 @@ Normalization to a $[0, 1]$ scale ensures that neither relevance nor PageRank do
 
 ## 3. Empirical Evaluation & Analysis
 
-The experiments were executed using the compiled Python script. We evaluate PageRank convergence properties, analyze graph authority distributions, and compare query scoring models.
+The experiments were executed using the compiled TypeScript search engine stack. We evaluate PageRank convergence properties, analyze graph authority distributions, and compare query scoring models.
 
 ### 3.1 The Eigenvalue Gap and Convergence Rates
 The transition dynamics of the power iteration method are governed by the spectral properties of the Google Matrix $M$. Let $\lambda_1, \lambda_2, \dots, \lambda_N$ represent the eigenvalues of $M$ sorted in descending order of magnitude:
