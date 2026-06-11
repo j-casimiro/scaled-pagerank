@@ -589,7 +589,7 @@
   <header>
     <div>
       <h1>Wikipedia PageRank Search Engine</h1>
-      <div class="header-sub">Dataset: 100 History-centered Wikipedia Pages</div>
+      <div class="header-sub">Dataset: Loading...</div>
     </div>
     <button class="theme-btn" id="theme-toggle">Theme: Light</button>
   </header>
@@ -782,7 +782,6 @@
     const statIterations = document.getElementById("stat-iterations");
     const statNodes = document.getElementById("stat-nodes");
     
-    
     const searchInput = document.getElementById("search-query-input");
     const scoringSelectMode = document.getElementById("scoring-select-mode");
     const resultsDisplayArea = document.getElementById("results-display-area");
@@ -842,9 +841,8 @@
     let pages = CRAWL_DATA.pages;
 
     // Update header subtitle dynamically
-    statNodes.textContent = numNodes;
     document.querySelector(".header-sub").textContent = `Dataset: ${numNodes} Scientific Revolution-centered Wikipedia Pages`;
-    
+    statNodes.textContent = numNodes;
 
     // Calculate In-Links
     function initInDegrees() {

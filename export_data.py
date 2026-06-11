@@ -35,8 +35,7 @@ BLACKLIST_PREFIXES = (
     "wikipedia:", "file:", "help:", "category:", "special:", "talk:", "portal:",
     "template:", "template_talk:", "book:", "draft:", "module:", "mediawiki:",
     "user:", "user_talk:", "category_talk:", "special:", "wp:", "talk:",
-    "isbn", "doi", "issn", "pmid", "s2cid",
-    
+    "isbn", "doi", "issn", "pmid", "s2cid"
 )
 
 
