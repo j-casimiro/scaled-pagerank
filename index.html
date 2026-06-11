@@ -1,0 +1,1487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wikipedia PageRank & Search Engine</title>
+  <!-- D3.js for Graph Visualization -->
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <!-- Load Pre-crawled Wikipedia Data -->
+  <script src="data.js"></script>
+  
+  <style>
+    :root {
+      /* Light Theme Variables (Default) */
+      --bg-main: #ffffff;
+      --bg-sidebar: #fafafa;
+      --bg-card: #ffffff;
+      --bg-card-hover: #f5f5f5;
+      --border-color: #cccccc;
+      --border-active: #0066cc;
+      --text-primary: #333333;
+      --text-secondary: #555555;
+      --text-muted: #777777;
+      --accent-cyan: #0066cc;
+      --accent-violet: #8e44ad;
+      --bg-terminal: #fdfdfd;
+      --text-terminal: #333333;
+      --link-color: #1a0dab;
+      --link-url-color: #006621;
+      --graph-bg: #ffffff;
+      --node-default: #999999;
+      --node-dimmed: #e5e5e5;
+    }
+
+    body.dark-theme {
+      /* Dark Theme Variables */
+      --bg-main: #121212;
+      --bg-sidebar: #1a1a1a;
+      --bg-card: #222222;
+      --bg-card-hover: #2d2d2d;
+      --border-color: #3a3a3a;
+      --border-active: #38bdf8;
+      --text-primary: #e2e8f0;
+      --text-secondary: #94a3b8;
+      --text-muted: #64748b;
+      --accent-cyan: #38bdf8;
+      --accent-violet: #a78bfa;
+      --bg-terminal: #070a0f;
+      --text-terminal: #38bdf8;
+      --link-color: #63b3ed;
+      --link-url-color: #48bb78;
+      --graph-bg: #0e0e0e;
+      --node-default: #64748b;
+      --node-dimmed: #2d3748;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+      color: var(--text-primary);
+      background-color: var(--bg-main);
+      margin: 0;
+      padding: 0;
+      transition: background-color 0.3s ease, color 0.3s ease;
+    }
+
+    h1, h2, h3 {
+      color: var(--text-primary);
+      margin-top: 0;
+      transition: color 0.3s ease;
+    }
+
+    h1 {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    header {
+      border-bottom: 1px solid var(--border-color);
+      padding: 12px 20px;
+      background-color: var(--bg-sidebar);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: background-color 0.3s ease, border-color 0.3s ease;
+    }
+
+    .header-sub {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .theme-btn {
+      background: none;
+      border: 1px solid var(--border-color);
+      padding: 6px 12px;
+      font-size: 12px;
+      cursor: pointer;
+      border-radius: 4px;
+      color: var(--text-primary);
+      transition: all 0.2s ease;
+    }
+
+    .theme-btn:hover {
+      background-color: var(--bg-card-hover);
+    }
+
+    .app-container {
+      display: flex;
+      height: calc(100vh - 54px);
+    }
+
+    /* Sidebar controls */
+    aside {
+      width: 280px;
+      border-right: 1px solid var(--border-color);
+      background-color: var(--bg-sidebar);
+      padding: 20px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      transition: background-color 0.3s ease, border-color 0.3s ease;
+    }
+
+    .section-title {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 4px;
+      margin-bottom: 10px;
+    }
+
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .control-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    .control-value {
+      font-family: monospace;
+      font-weight: bold;
+      color: var(--accent-cyan);
+    }
+
+    input[type="range"] {
+      width: 100%;
+      margin: 0;
+    }
+
+    .toggle-container {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 13px;
+    }
+
+    .stats-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      font-size: 13px;
+    }
+
+    .stat-item {
+      display: flex;
+      justify-content: space-between;
+      border-bottom: 1px dashed var(--border-color);
+      padding-bottom: 4px;
+    }
+
+    .stat-val {
+      font-family: monospace;
+      font-weight: bold;
+    }
+
+    /* Main Dashboard Panel */
+    main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* Tab navigation */
+    .tab-nav {
+      display: flex;
+      border-bottom: 1px solid var(--border-color);
+      background-color: var(--bg-sidebar);
+      transition: background-color 0.3s ease, border-color 0.3s ease;
+    }
+
+    .tab-btn {
+      background: none;
+      border: none;
+      border-right: 1px solid var(--border-color);
+      color: var(--text-secondary);
+      padding: 12px 18px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      outline: none;
+      transition: all 0.2s ease;
+    }
+
+    .tab-btn:hover {
+      background-color: var(--bg-card-hover);
+      color: var(--text-primary);
+    }
+
+    .tab-btn.active {
+      background-color: var(--bg-main);
+      color: var(--text-primary);
+      font-weight: 600;
+      border-bottom: 1px solid var(--bg-main);
+      margin-bottom: -1px;
+    }
+
+    /* Tab content container */
+    .tab-content {
+      flex: 1;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .tab-pane {
+      display: none;
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+
+    .tab-pane.active {
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Search Tab Layout */
+    .search-wrapper {
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      height: 100%;
+      overflow-y: auto;
+    }
+
+    .search-bar-container {
+      display: flex;
+      gap: 10px;
+      width: 100%;
+      max-width: 800px;
+    }
+
+    .search-input {
+      flex: 1;
+      border: 1px solid var(--border-color);
+      background-color: var(--bg-main);
+      color: var(--text-primary);
+      padding: 8px 12px;
+      font-size: 14px;
+      outline: none;
+      border-radius: 4px;
+      transition: all 0.2s ease;
+    }
+
+    .search-input:focus {
+      border-color: var(--border-active);
+    }
+
+    .scoring-select {
+      border: 1px solid var(--border-color);
+      background-color: var(--bg-main);
+      color: var(--text-primary);
+      padding: 6px 10px;
+      font-size: 13px;
+      outline: none;
+      border-radius: 4px;
+      transition: all 0.2s ease;
+    }
+
+    /* Results list */
+    .results-container {
+      max-width: 800px;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      padding-bottom: 20px;
+    }
+
+    .no-results {
+      padding: 40px 0;
+      color: var(--text-muted);
+    }
+
+    .result-card {
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 15px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .result-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 10px;
+    }
+
+    .result-title-link {
+      font-size: 15px;
+      font-weight: bold;
+      color: var(--link-color);
+      text-decoration: none;
+    }
+
+    .result-title-link:hover {
+      text-decoration: underline;
+    }
+
+    .result-url {
+      font-size: 12px;
+      color: var(--link-url-color);
+      word-break: break-all;
+    }
+
+    .metrics-group {
+      display: flex;
+      gap: 10px;
+      font-size: 11px;
+      color: var(--text-muted);
+      font-family: monospace;
+    }
+
+    .metric-value {
+      font-weight: bold;
+      color: var(--text-primary);
+    }
+
+    .result-snippet {
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.4;
+    }
+
+    .matched-terms-list {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .match-term-pill {
+      background: var(--bg-card-hover);
+      color: var(--text-primary);
+      padding: 1px 5px;
+      border-radius: 3px;
+    }
+
+    .term-highlight {
+      background: #ffff66;
+      color: #000000;
+      font-weight: bold;
+      padding: 0 2px;
+    }
+
+    .graph-action {
+      background: none;
+      border: none;
+      color: var(--accent-cyan);
+      cursor: pointer;
+      font-size: 11px;
+      padding: 0;
+      text-decoration: underline;
+      margin-left: auto;
+    }
+
+    /* Graph Tab Layout */
+    .graph-pane-container {
+      display: flex;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    #graph-container {
+      flex: 1;
+      height: 100%;
+      position: relative;
+      background-color: var(--graph-bg);
+      transition: background-color 0.3s ease;
+    }
+
+    #graph-svg {
+      width: 100%;
+      height: 100%;
+    }
+
+    #graph-svg line {
+      transition: stroke 0.3s ease, stroke-width 0.3s ease;
+    }
+
+    #graph-svg text {
+      fill: var(--text-primary);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      transition: fill 0.3s ease;
+      paint-order: stroke fill;
+      stroke: var(--bg-main);
+      stroke-width: 3px;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    #graph-svg circle {
+      transition: stroke 0.3s ease, stroke-width 0.3s ease, fill 0.3s ease;
+    }
+
+    .node-details-drawer {
+      width: 280px;
+      border-left: 1px solid var(--border-color);
+      background-color: var(--bg-sidebar);
+      padding: 15px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      transition: background-color 0.3s ease, border-color 0.3s ease;
+    }
+
+    .drawer-empty-state {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 12px;
+    }
+
+    .node-title-header {
+      font-weight: bold;
+      font-size: 15px;
+      color: var(--text-primary);
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 5px;
+    }
+
+    .node-section {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+
+    .node-section-hdr {
+      font-size: 11px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      font-weight: bold;
+    }
+
+    .node-links-list {
+      display: block;
+      max-height: 180px;
+      overflow-y: auto;
+      font-size: 12px;
+      border: 1px solid var(--border-color);
+      padding: 5px;
+      background: var(--bg-main);
+    }
+
+    .node-link-item {
+      display: block;
+      padding: 4px 6px;
+      color: var(--link-color);
+      text-decoration: none;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      cursor: pointer;
+      border-radius: 2px;
+    }
+
+    .node-link-item:hover {
+      text-decoration: underline;
+      background-color: var(--bg-card-hover);
+    }
+
+    /* Logs Tab Layout */
+    .logs-wrapper {
+      padding: 20px;
+      overflow-y: auto;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      height: 100%;
+    }
+
+    .logs-card {
+      border: 1px solid var(--border-color);
+      background-color: var(--bg-main);
+      padding: 15px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      transition: background-color 0.3s ease, border-color 0.3s ease;
+    }
+
+    .logs-card-title {
+      font-weight: bold;
+      font-size: 14px;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 5px;
+    }
+
+    .authority-list {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .authority-item {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      border-bottom: 1px solid var(--border-color);
+      padding: 4px 0;
+    }
+
+    .authority-name {
+      color: var(--link-color);
+      cursor: pointer;
+    }
+
+    .authority-name:hover {
+      text-decoration: underline;
+    }
+
+    .authority-val {
+      font-family: monospace;
+      font-weight: bold;
+      color: var(--accent-cyan);
+    }
+
+    .logs-terminal {
+      background-color: var(--bg-terminal);
+      border: 1px solid var(--border-color);
+      padding: 8px;
+      font-family: monospace;
+      font-size: 11px;
+      color: var(--text-terminal);
+      overflow-y: auto;
+      flex: 1;
+      height: 350px;
+      transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header>
+    <div>
+      <h1>Wikipedia PageRank Search Engine</h1>
+      <div class="header-sub">Dataset: 100 History-centered Wikipedia Pages</div>
+    </div>
+    <button class="theme-btn" id="theme-toggle">Theme: Light</button>
+  </header>
+
+  <!-- Container -->
+  <div class="app-container">
+    
+    <!-- Sidebar Control Center -->
+    <aside>
+      <div>
+        <div class="section-title">Damping Parameters</div>
+        
+        <!-- Damping Factor Slider -->
+        <div class="control-group">
+          <div class="control-header">
+            <span>Damping Factor (d)</span>
+            <span class="control-value" id="damping-value">0.85</span>
+          </div>
+          <input type="range" id="damping-slider" min="0.05" max="0.99" step="0.01" value="0.85">
+        </div>
+
+        <!-- Alpha Slider -->
+        <div class="control-group" style="margin-top: 10px;">
+          <div class="control-header">
+            <span>Log-Linear Weight (α)</span>
+            <span class="control-value" id="alpha-value">1.0</span>
+          </div>
+          <input type="range" id="alpha-slider" min="0.1" max="10.0" step="0.1" value="1.0">
+        </div>
+      </div>
+
+      <div>
+        <div class="section-title">Visualization Settings</div>
+        
+        <!-- Toggle Graph Sizing -->
+        <div class="toggle-container">
+          <span>Scale nodes by PageRank</span>
+          <input type="checkbox" id="node-size-toggle" checked>
+        </div>
+      </div>
+
+      <div>
+        <div class="section-title">Graph Stats</div>
+        <div class="stats-list">
+          <div class="stat-item">
+            <span>Nodes (pages)</span>
+            <span class="stat-val">100</span>
+          </div>
+          <div class="stat-item">
+            <span>Internal links</span>
+            <span class="stat-val" id="stat-links">0</span>
+          </div>
+          <div class="stat-item">
+            <span>Iterations</span>
+            <span class="stat-val" id="stat-iterations">0</span>
+          </div>
+          <div class="stat-item">
+            <span>Sum of PageRank</span>
+            <span class="stat-val">1.000</span>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main>
+      
+      <!-- Tabs Nav -->
+      <nav class="tab-nav">
+        <button class="tab-btn active" data-tab="search-tab">Search Engine</button>
+        <button class="tab-btn" data-tab="graph-tab" id="graph-tab-btn">Graph Visualizer</button>
+        <button class="tab-btn" data-tab="logs-tab">Convergence & Authority</button>
+      </nav>
+
+      <!-- Tabs Contents -->
+      <div class="tab-content">
+        
+        <!-- Tab 1: Search -->
+        <div class="tab-pane active" id="search-tab">
+          <div class="search-wrapper">
+            
+            <!-- Search bar -->
+            <div class="search-bar-container">
+              <input type="text" class="search-input" id="search-query-input" placeholder="Search crawled pages (e.g. 'Roman Emperor', 'Revolution')..." autofocus>
+              <select class="scoring-select" id="scoring-select-mode">
+                <option value="multiplicative">Scoring: Multiplicative (Relevance * PR)</option>
+                <option value="log-linear">Scoring: Log-Linear (Relevance + α*log(PR))</option>
+              </select>
+            </div>
+
+            <!-- Results -->
+            <div class="results-container" id="results-display-area">
+              <div class="no-results">
+                <p>Type a query above to search the dataset. Results combine TF-IDF and PageRank.</p>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Tab 2: Graph -->
+        <div class="tab-pane" id="graph-tab">
+          <div class="graph-pane-container">
+            
+            <!-- Graph SVG Container -->
+            <div id="graph-container">
+              <svg id="graph-svg"></svg>
+            </div>
+            
+            <!-- Graph Node Side Details -->
+            <div class="node-details-drawer" id="graph-node-details">
+              <div class="drawer-empty-state" id="drawer-empty">
+                <p>Click a node in the graph to view link details and PageRank scores.</p>
+              </div>
+              <div class="node-details-content" id="drawer-content" style="display: none; flex-direction: column; gap: 12px;">
+                <div class="node-title-header" id="details-title">Ancient Rome</div>
+                <div class="result-url" style="margin-top: -8px;" id="details-url"></div>
+                
+                <div class="node-section">
+                  <div class="node-section-hdr">Metrics</div>
+                  <div style="font-family: monospace; font-size: 12px;">
+                    PageRank: <span id="details-pr" style="font-weight: bold;">0.0125</span><br>
+                    Out-degree: <span id="details-out" style="font-weight: bold;">12</span>
+                  </div>
+                </div>
+
+                <div class="node-section">
+                  <div class="node-section-hdr">Preview</div>
+                  <div id="details-snippet" style="font-size: 12px; color: var(--text-secondary); max-height: 180px; overflow-y: auto;"></div>
+                </div>
+
+                <div class="node-section">
+                  <div class="node-section-hdr" id="details-out-hdr">Out-links (0)</div>
+                  <div class="node-links-list" id="details-outlinks"></div>
+                </div>
+
+                <div class="node-section">
+                  <div class="node-section-hdr" id="details-in-hdr">In-links (0)</div>
+                  <div class="node-links-list" id="details-inlinks"></div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Tab 3: Logs & Authority -->
+        <div class="tab-pane" id="logs-tab">
+          <div class="logs-wrapper">
+            
+            <!-- Left: Top Authorities list -->
+            <div class="logs-card">
+              <div class="logs-card-title">Top 15 Pages by PageRank</div>
+              <div class="authority-list" id="authority-rankings-list">
+                <!-- Populated dynamically -->
+              </div>
+            </div>
+
+            <!-- Right: Power Iteration Steps terminal -->
+            <div class="logs-card" style="display: flex; flex-direction: column;">
+              <div class="logs-card-title">Power Iteration Execution Logs</div>
+              <div class="logs-terminal" id="convergence-terminal-output">
+                <!-- Log output -->
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+    </main>
+
+  </div>
+
+  <script>
+    // JS Program State
+    let pagerankVector = [];
+    let pagerankLog = [];
+    let inDegreeList = {};
+    let searchMode = 'multiplicative';
+    
+    // Elements
+    const dampingSlider = document.getElementById("damping-slider");
+    const dampingValue = document.getElementById("damping-value");
+    const alphaSlider = document.getElementById("alpha-slider");
+    const alphaValue = document.getElementById("alpha-value");
+    const nodeSizeToggle = document.getElementById("node-size-toggle");
+    
+    const statLinks = document.getElementById("stat-links");
+    const statIterations = document.getElementById("stat-iterations");
+    
+    
+    const searchInput = document.getElementById("search-query-input");
+    const scoringSelectMode = document.getElementById("scoring-select-mode");
+    const resultsDisplayArea = document.getElementById("results-display-area");
+    
+    const tabButtons = document.querySelectorAll(".tab-btn");
+    const tabPanes = document.querySelectorAll(".tab-pane");
+    
+    const themeToggle = document.getElementById("theme-toggle");
+
+    // Theme toggle logic
+    let currentTheme = localStorage.getItem("theme") || "light";
+    if (currentTheme === "dark") {
+      document.body.classList.add("dark-theme");
+      themeToggle.textContent = "Theme: Dark";
+    }
+
+    themeToggle.addEventListener("click", () => {
+      if (document.body.classList.contains("dark-theme")) {
+        document.body.classList.remove("dark-theme");
+        localStorage.setItem("theme", "light");
+        themeToggle.textContent = "Theme: Light";
+      } else {
+        document.body.classList.add("dark-theme");
+        localStorage.setItem("theme", "dark");
+        themeToggle.textContent = "Theme: Dark";
+      }
+      // Re-trigger highlighting to refresh color bindings on nodes/links
+      if (d3SelectedNodeId !== null) {
+        selectNodeInGraph(d3SelectedNodeId);
+      } else {
+        clearNodeSelection();
+      }
+    });
+    
+    // Stop Words Set
+    const STOP_WORDS = new Set([
+      "a", "about", "above", "after", "again", "against", "all", "am", "an", "and", "any", "are", "aren't", "as", "at",
+      "be", "because", "been", "before", "being", "below", "between", "both", "but", "by", "can't", "cannot", "could",
+      "couldn't", "did", "didn't", "do", "does", "doesn't", "doing", "don't", "down", "during", "each", "few", "for",
+      "from", "further", "had", "hadn't", "has", "hasn't", "have", "haven't", "having", "he", "he'd", "he'll", "he's",
+      "her", "here", "here's", "hers", "herself", "him", "himself", "his", "how", "how's", "i", "i'd", "i'll", "i'm",
+      "i've", "if", "in", "into", "is", "isn't", "it", "it's", "its", "itself", "let's", "me", "more", "most", "mustn't",
+      "my", "myself", "no", "nor", "not", "of", "off", "on", "once", "only", "or", "other", "ought", "our", "ours",
+      "ourselves", "out", "over", "own", "same", "shan't", "she", "she'd", "she'll", "she's", "should", "shouldn't",
+      "so", "some", "such", "than", "that", "that's", "the", "their", "theirs", "them", "themselves", "then", "there",
+      "there's", "these", "they", "they'd", "they'll", "they're", "they've", "this", "those", "through", "to", "too",
+      "under", "until", "up", "very", "was", "wasn't", "we", "we'd", "we'll", "we're", "we've", "were", "weren't",
+      "what", "what's", "when", "when's", "where", "where's", "which", "while", "who", "who's", "whom", "why", "why's",
+      "with", "won't", "would", "wouldn't", "you", "you'd", "you'll", "you're", "you've", "your", "yours", "yourself",
+      "yourselves"
+    ]);
+
+    // Initialize variables
+    const numNodes = CRAWL_DATA.pages.length;
+    let adjacencyList = CRAWL_DATA.adjacency_list;
+    let invertedIndex = CRAWL_DATA.inverted_index;
+    let pages = CRAWL_DATA.pages;
+
+    // Update header subtitle dynamically
+    document.querySelector(".header-sub").textContent = `Dataset: ${numNodes} History-centered Wikipedia Pages`;
+    
+
+    // Calculate In-Links
+    function initInDegrees() {
+      inDegreeList = {};
+      for (let i = 0; i < numNodes; i++) {
+        inDegreeList[i] = [];
+      }
+      let linkCount = 0;
+      for (let u = 0; u < numNodes; u++) {
+        const targets = adjacencyList[u] || [];
+        linkCount += targets.length;
+        for (const v of targets) {
+          inDegreeList[v].push(u);
+        }
+      }
+      statLinks.textContent = linkCount;
+    }
+
+    // Power Iteration PageRank Solver
+    function solvePageRank(d, tolerance = 1e-6, maxIterations = 200) {
+      pagerankLog = [];
+      const outDegrees = new Array(numNodes).fill(0);
+      const sinks = [];
+
+      for (let u = 0; u < numNodes; u++) {
+        outDegrees[u] = (adjacencyList[u] || []).length;
+        if (outDegrees[u] === 0) {
+          sinks.push(u);
+        }
+      }
+
+      let R = new Array(numNodes).fill(1.0 / numNodes);
+      let converged = false;
+      let iterations = 0;
+
+      pagerankLog.push(`Initial R_0 = ${(1.0/numNodes).toFixed(4)}`);
+      pagerankLog.push(`d = ${d.toFixed(2)}, Teleportation = ${(1.0-d).toFixed(2)}`);
+      pagerankLog.push(`Found ${sinks.length} sink nodes. Redistributing...`);
+
+      for (let iter = 0; iter < maxIterations; iter++) {
+        iterations++;
+        let R_next = new Array(numNodes).fill(0);
+        
+        let sinkSum = 0;
+        for (const sink of sinks) {
+          sinkSum += R[sink];
+        }
+
+        const baseSurferProb = (1.0 - d) / numNodes + (d * sinkSum) / numNodes;
+
+        for (let i = 0; i < numNodes; i++) {
+          let incomingSum = 0;
+          const parents = inDegreeList[i] || [];
+          for (const p of parents) {
+            incomingSum += R[p] / outDegrees[p];
+          }
+          R_next[i] = baseSurferProb + d * incomingSum;
+        }
+
+        // L1 Delta
+        let diff = 0;
+        for (let i = 0; i < numNodes; i++) {
+          diff += Math.abs(R_next[i] - R[i]);
+        }
+
+        R = R_next;
+        pagerankLog.push(`Step ${iter+1}: L1 Delta = ${diff.toExponential(4)}`);
+
+        if (diff < tolerance) {
+          converged = true;
+          pagerankLog.push(`Converged at step ${iter+1} (Delta < ${tolerance.toExponential(0)})`);
+          break;
+        }
+      }
+
+      statIterations.textContent = iterations;
+      return R;
+    }
+
+    // Run Engine Updates
+    function updateEngineState() {
+      const d = parseFloat(dampingSlider.value);
+      dampingValue.textContent = d.toFixed(2);
+      
+      pagerankVector = solvePageRank(d);
+      
+      const terminal = document.getElementById("convergence-terminal-output");
+      terminal.innerHTML = "";
+      pagerankLog.forEach((line) => {
+        const div = document.createElement("div");
+        div.textContent = line;
+        terminal.appendChild(div);
+      });
+      terminal.scrollTop = terminal.scrollHeight;
+
+      // Update Top list
+      const authorityRankingsList = document.getElementById("authority-rankings-list");
+      authorityRankingsList.innerHTML = "";
+
+      const indices = Array.from({ length: numNodes }, (_, i) => i);
+      indices.sort((a, b) => pagerankVector[b] - pagerankVector[a]);
+
+      indices.slice(0, 15).forEach((nodeId, rank) => {
+        const item = document.createElement("div");
+        item.className = "authority-item";
+        
+        const name = document.createElement("span");
+        name.className = "authority-name";
+        name.textContent = `${rank + 1}. ${pages[nodeId].title}`;
+        name.onclick = () => {
+          selectNodeInGraph(nodeId);
+          switchTab("graph-tab");
+        };
+
+        const val = document.createElement("span");
+        val.className = "authority-val";
+        val.textContent = pagerankVector[nodeId].toFixed(5);
+
+        item.appendChild(name);
+        item.appendChild(val);
+        authorityRankingsList.appendChild(item);
+      });
+
+      executeSearch();
+      updateGraphNodeSizes();
+    }
+
+    // Resolve search
+    function executeSearch() {
+      const query = searchInput.value.trim();
+      const alpha = parseFloat(alphaSlider.value);
+      alphaValue.textContent = alpha.toFixed(1);
+
+      if (!query) {
+        resultsDisplayArea.innerHTML = `
+          <div class="no-results">
+            <p>Type a query above to search the dataset. Results combine TF-IDF and PageRank.</p>
+          </div>
+        `;
+        return;
+      }
+
+      const cleanTerms = query.toLowerCase()
+        .replace(/[^\w\s]/g, ' ')
+        .split(/\s+/)
+        .filter(t => !STOP_WORDS.has(t) && t.length > 1);
+
+      if (cleanTerms.length === 0) {
+        resultsDisplayArea.innerHTML = `
+          <div class="no-results">
+            <p>All query terms were filtered out as stop words. Try a search with more specific words.</p>
+          </div>
+        `;
+        return;
+      }
+
+      const docRelevance = {};
+      const matchedTerms = {};
+
+      for (const term of cleanTerms) {
+        if (invertedIndex[term]) {
+          for (const [pageIdStr, tfIdf] of Object.entries(invertedIndex[term])) {
+            const pageId = parseInt(pageIdStr);
+            docRelevance[pageId] = (docRelevance[pageId] || 0) + tfIdf;
+            if (!matchedTerms[pageId]) matchedTerms[pageId] = [];
+            matchedTerms[pageId].push(term);
+          }
+        }
+      }
+
+      const results = [];
+      for (const [pageIdStr, relevance] of Object.entries(docRelevance)) {
+        const pageId = parseInt(pageIdStr);
+        const pr = pagerankVector[pageId];
+        const score_mul = relevance * pr;
+        const score_log = relevance + alpha * (Math.log(pr) + 10.0);
+
+        results.push({
+          id: pageId,
+          title: pages[pageId].title,
+          url: pages[pageId].url,
+          snippet: pages[pageId].snippet,
+          relevance: relevance,
+          pagerank: pr,
+          score_mul: score_mul,
+          score_log_linear: score_log,
+          matched_terms: matchedTerms[pageId]
+        });
+      }
+
+      if (results.length === 0) {
+        resultsDisplayArea.innerHTML = `
+          <div class="no-results">
+            <p>No crawled pages contain the query terms.</p>
+          </div>
+        `;
+        return;
+      }
+
+      if (searchMode === 'multiplicative') {
+        results.sort((a, b) => b.score_mul - a.score_mul);
+      } else {
+        results.sort((a, b) => b.score_log_linear - a.score_log_linear);
+      }
+
+      resultsDisplayArea.innerHTML = "";
+      results.forEach((res, index) => {
+        const card = document.createElement("div");
+        card.className = "result-card";
+        
+        const header = document.createElement("div");
+        header.className = "result-header";
+        
+        const titleLink = document.createElement("a");
+        titleLink.className = "result-title-link";
+        titleLink.href = res.url;
+        titleLink.target = "_blank";
+        titleLink.textContent = `${index + 1}. ${res.title}`;
+        
+        const urlDiv = document.createElement("div");
+        urlDiv.className = "result-url";
+        urlDiv.textContent = res.url;
+
+        const titleGroup = document.createElement("div");
+        titleGroup.appendChild(titleLink);
+        titleGroup.appendChild(urlDiv);
+        header.appendChild(titleGroup);
+
+        // Metrics group
+        const metrics = document.createElement("div");
+        metrics.className = "metrics-group";
+        
+        let scoreLabel = "";
+        let scoreVal = 0;
+        if (searchMode === 'multiplicative') {
+          scoreLabel = "Score (Mul)";
+          scoreVal = res.score_mul.toExponential(3);
+        } else {
+          scoreLabel = "Score (Log-Lin)";
+          scoreVal = res.score_log_linear.toFixed(3);
+        }
+
+        metrics.innerHTML = `
+          <div>TF-IDF: <span class="metric-value">${res.relevance.toFixed(4)}</span></div>
+          <div>PR: <span class="metric-value">${res.pagerank.toFixed(5)}</span></div>
+          <div>${scoreLabel}: <span class="metric-value">${scoreVal}</span></div>
+        `;
+        header.appendChild(metrics);
+        card.appendChild(header);
+
+        // Snippet
+        let snippetText = res.snippet;
+        cleanTerms.forEach(term => {
+          const regex = new RegExp(`\\b(${term})\\b`, 'gi');
+          snippetText = snippetText.replace(regex, `<span class="term-highlight">$1</span>`);
+        });
+
+        const snippet = document.createElement("div");
+        snippet.className = "result-snippet";
+        snippet.innerHTML = snippetText;
+        card.appendChild(snippet);
+
+        // Matched terms
+        const matchTags = document.createElement("div");
+        matchTags.className = "matched-terms-list";
+        matchTags.innerHTML = `<span>Matches:</span>`;
+        res.matched_terms.forEach(term => {
+          const pill = document.createElement("span");
+          pill.className = "match-term-pill";
+          pill.textContent = term;
+          matchTags.appendChild(pill);
+        });
+
+        const graphAction = document.createElement("button");
+        graphAction.className = "graph-action";
+        graphAction.textContent = "View on Graph";
+        graphAction.onclick = () => {
+          selectNodeInGraph(res.id);
+          switchTab("graph-tab");
+        };
+        matchTags.appendChild(graphAction);
+
+        card.appendChild(matchTags);
+        resultsDisplayArea.appendChild(card);
+      });
+    }
+
+    // tab navigation
+    function switchTab(tabId) {
+      tabButtons.forEach(btn => {
+        btn.classList.toggle("active", btn.getAttribute("data-tab") === tabId);
+      });
+      tabPanes.forEach(pane => {
+        pane.classList.toggle("active", pane.id === tabId);
+      });
+      if (tabId === "graph-tab") {
+        resizeD3Graph();
+      }
+    }
+
+    tabButtons.forEach(btn => {
+      btn.addEventListener("click", () => switchTab(btn.getAttribute("data-tab")));
+    });
+
+    dampingSlider.addEventListener("input", updateEngineState);
+    alphaSlider.addEventListener("input", updateEngineState);
+    searchInput.addEventListener("input", executeSearch);
+    nodeSizeToggle.addEventListener("change", updateGraphNodeSizes);
+
+    scoringSelectMode.addEventListener("change", (e) => {
+      searchMode = e.target.value;
+      executeSearch();
+    });
+
+    // ==========================================
+    // D3 GRAPH IMPLEMENTATION
+    // ==========================================
+    let d3Nodes = [];
+    let d3Links = [];
+    let d3Simulation = null;
+    let d3SelectedNodeId = null;
+
+    function buildD3Graph() {
+      const container = document.getElementById("graph-container");
+      const width = container.clientWidth;
+      const height = container.clientHeight || 500;
+
+      d3Nodes = pages.map(p => ({
+        id: p.id,
+        title: p.title,
+        url: p.url,
+        snippet: p.snippet
+      }));
+
+      d3Links = [];
+      for (let u = 0; u < numNodes; u++) {
+        const targets = adjacencyList[u] || [];
+        for (const v of targets) {
+          d3Links.push({ source: u, target: v });
+        }
+      }
+
+      const svg = d3.select("#graph-svg");
+      svg.selectAll("*").remove();
+
+      const mainGroup = svg.append("g").attr("class", "main-zoom-group");
+
+      const zoom = d3.zoom()
+        .scaleExtent([0.15, 6])
+        .on("zoom", (event) => mainGroup.attr("transform", event.transform));
+      svg.call(zoom);
+
+      // Simple arrowhead marker
+      mainGroup.append("defs").append("marker")
+        .attr("id", "arrow")
+        .attr("viewBox", "0 -5 10 10")
+        .attr("refX", 18)
+        .attr("refY", 0)
+        .attr("orient", "auto")
+        .attr("markerWidth", 4)
+        .attr("markerHeight", 4)
+        .append("path")
+        .attr("d", "M0,-5L10,0L0,5")
+        .attr("fill", "var(--border-color)");
+
+      // Links
+      const link = mainGroup.append("g")
+        .selectAll("line")
+        .data(d3Links)
+        .enter().append("line")
+        .attr("stroke", "var(--border-color)")
+        .attr("stroke-width", 1)
+        .attr("marker-end", "url(#arrow)");
+
+      // Nodes
+      const node = mainGroup.append("g")
+        .selectAll("g")
+        .data(d3Nodes)
+        .enter().append("g")
+        .attr("class", "node-group")
+        .style("cursor", "pointer")
+        .call(d3.drag()
+          .on("start", dragstarted)
+          .on("drag", dragged)
+          .on("end", dragended))
+        .on("click", (event, d) => {
+          event.stopPropagation();
+          selectNodeInGraph(d.id);
+        })
+        .on("mouseover", (event, d) => {
+          // Highlight node on hover and display its full label
+          d3.select(event.currentTarget).select("circle")
+            .attr("stroke", "var(--text-primary)")
+            .attr("stroke-width", 2);
+          
+          d3.select(event.currentTarget).select("text")
+            .text(d.title)
+            .attr("font-weight", "bold");
+        })
+        .on("mouseout", (event, d) => {
+          // Restore correct label state on mouse out
+          const isSelected = d.id === d3SelectedNodeId;
+          d3.select(event.currentTarget).select("circle")
+            .attr("stroke", isSelected ? "var(--text-primary)" : "var(--bg-main)")
+            .attr("stroke-width", isSelected ? 3 : 1.5);
+
+          d3.select(event.currentTarget).select("text")
+            .attr("font-weight", isSelected ? "bold" : "normal")
+            .text(d => getLabelTextForNode(d.id));
+        });
+
+      // Node circle
+      node.append("circle")
+        .attr("fill", d => {
+          if (d.id === 0) return "#0066cc"; // Seed (blue)
+          if (d.title === "ISBN") return "#ff3333"; // Leak (red)
+          return "var(--node-default)"; 
+        })
+        .attr("stroke", "var(--bg-main)")
+        .attr("stroke-width", 1.5)
+        .attr("r", 7);
+
+      // Node label (D3 handles theme text fill natively using CSS)
+      node.append("text")
+        .attr("dx", 10)
+        .attr("dy", ".35em")
+        .attr("font-size", "10px")
+        .text(d => getLabelTextForNode(d.id));
+
+      node.append("title")
+        .text(d => `${d.title} (PageRank: ${pagerankVector[d.id].toFixed(5)})`);
+
+      d3Simulation = d3.forceSimulation(d3Nodes)
+        .force("link", d3.forceLink(d3Links).id(d => d.id).distance(150).strength(0.4))
+        .force("charge", d3.forceManyBody().strength(-350)) // Pushes nodes further apart
+        .force("center", d3.forceCenter(width / 2, height / 2))
+        .force("collision", d3.forceCollide().radius(d => getDynamicRadius(d.id) + 12)) // Buffer to prevent overlapping
+        .on("tick", () => {
+          link
+            .attr("x1", d => d.source.x)
+            .attr("y1", d => d.source.y)
+            .attr("x2", d => d.target.x)
+            .attr("y2", d => d.target.y);
+
+          node
+            .attr("transform", d => `translate(${d.x}, ${d.y})`);
+        });
+
+      svg.on("click", () => clearNodeSelection());
+    }
+
+    // Decides when to show a label on the graph
+    function getLabelTextForNode(nodeId) {
+      const isSelected = nodeId === d3SelectedNodeId;
+      const isLinked = d3SelectedNodeId !== null && (
+        (adjacencyList[d3SelectedNodeId] && adjacencyList[d3SelectedNodeId].includes(nodeId)) ||
+        (inDegreeList[d3SelectedNodeId] && inDegreeList[d3SelectedNodeId].includes(nodeId))
+      );
+      
+      // Always show label for seed, ISBN leak, selected node, or immediate neighbors
+      if (nodeId === 0 || pages[nodeId].title === "ISBN" || isSelected || isLinked) {
+        return pages[nodeId].title;
+      }
+      
+      // Show labels for top 10% highly ranked pages to avoid overlap clutter
+      const pr = pagerankVector[nodeId] || 0;
+      if (pr > 0.015) {
+        return pages[nodeId].title;
+      }
+      
+      return "";
+    }
+
+    function getDynamicRadius(nodeId) {
+      if (!nodeSizeToggle.checked) return 7;
+      const pr = pagerankVector[nodeId] || 0.01;
+      return Math.max(4, Math.min(45, 5 + pr * 220));
+    }
+
+    function updateGraphNodeSizes() {
+      if (!d3Simulation) return;
+      
+      d3.select("#graph-svg").selectAll("circle")
+        .transition()
+        .duration(200)
+        .attr("r", d => getDynamicRadius(d.id));
+
+      d3Simulation.force("collision", d3.forceCollide().radius(d => getDynamicRadius(d.id) + 4));
+      d3Simulation.alphaTarget(0.01).restart();
+      
+      setTimeout(() => {
+        if (d3Simulation) d3Simulation.alphaTarget(0);
+      }, 300);
+
+      if (d3SelectedNodeId !== null) {
+        selectNodeInGraph(d3SelectedNodeId);
+      }
+    }
+
+    function selectNodeInGraph(nodeId) {
+      d3SelectedNodeId = nodeId;
+
+      // Highlight colors matching the theme variables
+      d3.select("#graph-svg").selectAll("circle")
+        .attr("stroke", d => d.id === nodeId ? "var(--text-primary)" : "var(--bg-main)")
+        .attr("stroke-width", d => d.id === nodeId ? 3 : 1.5)
+        .attr("fill", d => {
+          if (d.id === nodeId) return "#0066cc"; // Selected (blue)
+          const isLinked = adjacencyList[nodeId] && adjacencyList[nodeId].includes(d.id);
+          const linksToSelected = inDegreeList[nodeId] && inDegreeList[nodeId].includes(d.id);
+          if (isLinked) return "#9b59b6"; // Outlink (purple)
+          if (linksToSelected) return "#2ecc71"; // Inlink (green)
+          return "var(--node-dimmed)"; // Dimmed node matching theme
+        });
+
+      // Show text labels for selected node and its neighbors
+      d3.select("#graph-svg").selectAll(".node-group text")
+        .attr("font-weight", d => d.id === nodeId ? "bold" : "normal")
+        .text(d => getLabelTextForNode(d.id));
+
+      // Dim connections except neighbor paths
+      d3.select("#graph-svg").selectAll("line")
+        .attr("stroke", d => {
+          if (d.source.id === nodeId) return "#9b59b6"; // Purple out-link path
+          if (d.target.id === nodeId) return "#2ecc71"; // Green in-link path
+          return "var(--node-dimmed)";
+        })
+        .attr("stroke-width", d => (d.source.id === nodeId || d.target.id === nodeId) ? 1.5 : 0.6);
+
+      // Raise highlighted lines to the front
+      d3.select("#graph-svg").selectAll("line")
+        .filter(d => d.source.id === nodeId || d.target.id === nodeId)
+        .raise();
+
+      // Raise highlighted nodes to the front
+      d3.select("#graph-svg").selectAll(".node-group")
+        .filter(d => d.id === nodeId || 
+                     (adjacencyList[nodeId] && adjacencyList[nodeId].includes(d.id)) ||
+                     (inDegreeList[nodeId] && inDegreeList[nodeId].includes(d.id)))
+        .raise();
+
+      // Populate Node details side panel
+      document.getElementById("drawer-empty").style.display = "none";
+      const content = document.getElementById("drawer-content");
+      content.style.display = "flex";
+
+      const nodeData = pages[nodeId];
+      document.getElementById("details-title").textContent = nodeData.title;
+      
+      const linkElem = document.getElementById("details-url");
+      linkElem.innerHTML = `<a href="${nodeData.url}" target="_blank" style="color: var(--accent-cyan); font-size:11px;">${nodeData.url}</a>`;
+      
+      document.getElementById("details-pr").textContent = pagerankVector[nodeId].toFixed(6);
+      document.getElementById("details-out").textContent = (adjacencyList[nodeId] || []).length;
+      document.getElementById("details-snippet").textContent = nodeData.snippet;
+
+      // Outlinks List
+      const outList = document.getElementById("details-outlinks");
+      outList.innerHTML = "";
+      const outlinks = adjacencyList[nodeId] || [];
+      document.getElementById("details-out-hdr").textContent = `Out-links (${outlinks.length})`;
+      if (outlinks.length === 0) {
+        outList.innerHTML = `<span style="color:var(--text-muted); font-style:italic; padding:4px 6px;">None</span>`;
+      } else {
+        outlinks.forEach(targetId => {
+          const item = document.createElement("div");
+          item.className = "node-link-item";
+          item.textContent = pages[targetId].title;
+          item.onclick = () => selectNodeInGraph(targetId);
+          outList.appendChild(item);
+        });
+      }
+
+      // Inlinks List
+      const inList = document.getElementById("details-inlinks");
+      inList.innerHTML = "";
+      const inlinks = inDegreeList[nodeId] || [];
+      document.getElementById("details-in-hdr").textContent = `In-links (${inlinks.length})`;
+      if (inlinks.length === 0) {
+        inList.innerHTML = `<span style="color:var(--text-muted); font-style:italic; padding:4px 6px;">None</span>`;
+      } else {
+        inlinks.forEach(parentId => {
+          const item = document.createElement("div");
+          item.className = "node-link-item";
+          item.textContent = pages[parentId].title;
+          item.onclick = () => selectNodeInGraph(parentId);
+          inList.appendChild(item);
+        });
+      }
+    }
+
+    function clearNodeSelection() {
+      d3SelectedNodeId = null;
+      document.getElementById("drawer-content").style.display = "none";
+      document.getElementById("drawer-empty").style.display = "flex";
+
+      // Reset node colors and text visibility
+      d3.select("#graph-svg").selectAll("circle")
+        .attr("stroke", "var(--bg-main)")
+        .attr("stroke-width", 1.5)
+        .attr("fill", d => {
+          if (d.id === 0) return "#0066cc";
+          if (d.title === "ISBN") return "#ff3333";
+          return "var(--node-default)";
+        });
+
+      d3.select("#graph-svg").selectAll(".node-group text")
+        .attr("font-weight", "normal")
+        .text(d => getLabelTextForNode(d.id));
+
+      d3.select("#graph-svg").selectAll("line")
+        .attr("stroke", "var(--border-color)")
+        .attr("stroke-width", 1);
+    }
+
+    function resizeD3Graph() {
+      if (!d3Simulation) return;
+      const container = document.getElementById("graph-container");
+      const width = container.clientWidth;
+      const height = container.clientHeight || 500;
+      
+      d3Simulation.force("center", d3.forceCenter(width / 2, height / 2));
+      d3Simulation.alpha(0.2).restart();
+    }
+
+    function dragstarted(event, d) {
+      if (!event.active) d3Simulation.alphaTarget(0.2).restart();
+      d.fx = d.x;
+      d.fy = d.y;
+    }
+
+    function dragged(event, d) {
+      d.fx = event.x;
+      d.fy = event.y;
+    }
+
+    function dragended(event, d) {
+      if (!event.active) d3Simulation.alphaTarget(0);
+      d.fx = null;
+      d.fy = null;
+    }
+
+    window.addEventListener("resize", resizeD3Graph);
+
+    // Init
+    initInDegrees();
+    updateEngineState();
+    setTimeout(buildD3Graph, 200);
+
+  </script>
+</body>
+</html>
