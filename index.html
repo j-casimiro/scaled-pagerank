@@ -1300,7 +1300,7 @@
         })
         .attr("stroke", "var(--bg-main)")
         .attr("stroke-width", 1.5)
-        .attr("r", 7);
+        .attr("r", d => getDynamicRadius(d.id));
 
       // Node label (D3 handles theme text fill natively using CSS)
       node.append("text")
@@ -1369,7 +1369,7 @@
       const pr = pagerankVector[nodeId] || 0.002;
       const maxPR = Math.max(...pagerankVector);
       const pr_norm = maxPR > 0 ? pr / maxPR : 0;
-      return 5 + pr_norm * 30;
+      return 5 + pr_norm * 15;
     }
 
     function updateGraphNodeSizes() {
