@@ -53,7 +53,7 @@ def normalize_wiki_title(url):
 
 
 class WikiCrawler:
-    def __init__(self, limit=500, seed_url="https://en.wikipedia.org/wiki/History"):
+    def __init__(self, limit=100, seed_url="https://en.wikipedia.org/wiki/Scientific_Revolution"):
         self.limit = limit
         self.seed_url = seed_url
         self.pages = {}
@@ -209,7 +209,7 @@ class WikiIndexer:
 
 
 def main():
-    crawler = WikiCrawler(limit=500)
+    crawler = WikiCrawler(limit=100)
     pages, adjacency_list = crawler.crawl()
     
     indexer = WikiIndexer(pages)
