@@ -122,6 +122,7 @@
       display: flex;
       flex: 1;
       overflow: hidden;
+      position: relative;
     }
 
     /* Sidebar controls */
@@ -678,6 +679,97 @@
       height: 350px;
       transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
     }
+
+    /* Menu Toggle Button for Mobile Settings */
+    .menu-btn {
+      background: none;
+      border: 1px solid var(--border-color);
+      padding: 6px 12px;
+      font-size: 12px;
+      cursor: pointer;
+      border-radius: 4px;
+      color: var(--text-primary);
+      transition: all 0.2s ease;
+      display: none;
+    }
+    .menu-btn:hover {
+      background-color: var(--bg-card-hover);
+    }
+
+    /* Responsive Styling for Mobile Devices */
+    @media (max-width: 768px) {
+      header h1 {
+        font-size: 14px;
+      }
+      .header-sub {
+        font-size: 10px;
+      }
+      .menu-btn {
+        display: block;
+      }
+      aside {
+        position: absolute;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        height: 100%;
+        z-index: 1000;
+        transform: translateX(-100%);
+        transition: transform 0.3s ease;
+        box-shadow: 2px 0 10px rgba(0,0,0,0.15);
+      }
+      aside.show {
+        transform: translateX(0);
+      }
+      .search-wrapper.has-query {
+        padding: 20px;
+      }
+      .search-wrapper.has-query .search-bar-container {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+        padding-bottom: 12px;
+      }
+      .search-wrapper.has-query .scoring-select {
+        width: 100%;
+        max-width: none;
+      }
+      .results-container {
+        padding: 10px 0 20px 0;
+      }
+      .result-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+      }
+      .metrics-group {
+        width: 100%;
+        justify-content: flex-start;
+      }
+      .graph-pane-container {
+        flex-direction: column;
+      }
+      #graph-container {
+        height: 60%;
+        flex: none;
+      }
+      .node-details-drawer {
+        width: 100%;
+        height: 40%;
+        border-left: none;
+        border-top: 1px solid var(--border-color);
+        padding: 12px;
+      }
+      .logs-wrapper {
+        grid-template-columns: 1fr;
+        gap: 15px;
+        padding: 10px;
+        overflow-y: auto;
+      }
+      .logs-terminal {
+        height: 250px;
+      }
+    }
   </style>
 </head>
 <body>
@@ -688,7 +780,10 @@
       <h1>Wikipedia PageRank Search Engine</h1>
       <div class="header-sub">Dataset: Loading...</div>
     </div>
-    <button class="theme-btn" id="theme-toggle">Theme: Light</button>
+    <div style="display: flex; gap: 8px;">
+      <button class="menu-btn" id="menu-toggle">Settings</button>
+      <button class="theme-btn" id="theme-toggle">Theme: Light</button>
+    </div>
   </header>
 
   <!-- Container -->
@@ -1192,6 +1287,24 @@
 
     if (searchButton) {
       searchButton.addEventListener("click", executeSearch);
+    }
+
+    // Sidebar drawer toggle for mobile devices
+    const menuToggle = document.getElementById("menu-toggle");
+    const asideElement = document.querySelector("aside");
+
+    if (menuToggle && asideElement) {
+      menuToggle.addEventListener("click", (e) => {
+        e.stopPropagation();
+        asideElement.classList.toggle("show");
+      });
+
+      // Close sidebar when clicking anywhere else on mobile
+      document.addEventListener("click", (e) => {
+        if (asideElement.classList.contains("show") && !asideElement.contains(e.target) && e.target !== menuToggle) {
+          asideElement.classList.remove("show");
+        }
+      });
     }
 
     // ==========================================
